@@ -33,8 +33,6 @@ For security reasons, the app does not include an OpenAI API key by default. You
 2. Enter your API key in the app's settings screen
 3. The app will save your API key securely using Android's DataStore
 
-Alternatively, for development purposes, you can modify the `buildConfigField` in `app/build.gradle.kts` to include your API key.
-
 ## Technical Stack
 
 - Kotlin

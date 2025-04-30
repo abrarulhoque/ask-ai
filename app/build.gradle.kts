@@ -37,7 +37,7 @@ android {
             // Don't minify debug builds
             isMinifyEnabled = false
             isShrinkResources = false
-            buildConfigField("String", "OPENAI_API_KEY", "\"YOUR_API_KEY_HERE\"")
+            // API key should only be set through app settings
         }
     }
     
