@@ -99,6 +99,9 @@ dependencies {
     implementation("com.aallam.openai:openai-client:3.6.3")
     implementation("io.ktor:ktor-client-android:2.3.7")
     
+    // Google Gemini API
+    implementation("com.google.android.libraries.ai:ai-gemini:1.0.0")
+    
     // Datastore for preferences - lightweight storage
     implementation("androidx.datastore:datastore-preferences:1.0.0")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.2")

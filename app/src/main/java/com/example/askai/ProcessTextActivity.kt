@@ -119,11 +119,12 @@ class ProcessTextActivity : ComponentActivity() {
         // Show a temporary message while getting the definition
         overlayService?.showOverlay("Getting definition...")
         
-        // Get definition from OpenAI in the background
-        val openAIService = OpenAIService(settingsStore)
+        // Get definition using the appropriate AI service
+        val serviceFactory = AIServiceFactory(settingsStore)
         lifecycleScope.launch {
             try {
-                val definition = openAIService.getDefinition(selectedText)
+                val aiService = serviceFactory.getService()
+                val definition = aiService.getDefinition(selectedText)
                 Log.d(TAG, "Got definition: $definition")
                 
                 // Save to DataStore

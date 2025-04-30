@@ -10,7 +10,7 @@ import com.example.askai.data.SettingsStore
 import io.ktor.client.engine.android.Android
 import kotlinx.coroutines.flow.first
 
-class OpenAIService(private val settingsStore: SettingsStore) {
+class OpenAIService(private val settingsStore: SettingsStore) : AIService {
     
     private suspend fun getOpenAI(): OpenAI {
         val apiKey = settingsStore.apiKeyFlow.first()

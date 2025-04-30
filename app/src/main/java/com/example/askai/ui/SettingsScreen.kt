@@ -1,6 +1,7 @@
 package com.example.askai.ui
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -20,6 +21,9 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -46,6 +50,7 @@ fun SettingsScreen(
     var apiKey by remember { mutableStateOf("") }
     var systemPrompt by remember { mutableStateOf("") }
     var modelName by remember { mutableStateOf("") }
+    var provider by remember { mutableStateOf("openai") }
     var isSaving by remember { mutableStateOf(false) }
     
     // Load current settings
@@ -54,6 +59,7 @@ fun SettingsScreen(
         apiKey = settings.apiKey
         systemPrompt = settings.systemPrompt
         modelName = settings.model
+        provider = settings.provider
     }
     
     Scaffold(
@@ -80,7 +86,35 @@ fun SettingsScreen(
                 .verticalScroll(rememberScrollState())
         ) {
             Text(
-                text = "OpenAI Settings",
+                text = "AI Provider",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold
+            )
+            
+            Spacer(modifier = Modifier.height(8.dp))
+            
+            // Provider selection
+            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                SegmentedButton(
+                    selected = provider == "openai",
+                    onClick = { provider = "openai" },
+                    shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
+                ) {
+                    Text("OpenAI")
+                }
+                SegmentedButton(
+                    selected = provider == "gemini",
+                    onClick = { provider = "gemini" },
+                    shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
+                ) {
+                    Text("Gemini")
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            Text(
+                text = if (provider == "openai") "OpenAI Settings" else "Gemini Settings",
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold
             )
@@ -101,7 +135,14 @@ fun SettingsScreen(
                 value = modelName,
                 onValueChange = { modelName = it },
                 label = { Text("Model Name") },
-                placeholder = { Text("E.g. gpt-4o-mini, gpt-4o, gpt-3.5-turbo") },
+                placeholder = { 
+                    Text(
+                        if (provider == "openai") 
+                            "E.g. gpt-4o-mini, gpt-4o, gpt-3.5-turbo" 
+                        else 
+                            "E.g. gemini-1.5-flash, gemini-2.0-flash"
+                    ) 
+                },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true
             )
@@ -134,7 +175,8 @@ fun SettingsScreen(
                         val settings = AppSettings(
                             apiKey = apiKey,
                             systemPrompt = systemPrompt,
-                            model = modelName
+                            model = modelName,
+                            provider = provider
                         )
                         settingsStore.saveSettings(settings)
                         isSaving = false

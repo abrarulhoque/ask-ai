@@ -33,7 +33,8 @@ data class AppSettings(
             "Identify any idioms or expressions that might confuse learners\n" +
             "\n" +
             "Always use plain text format (no markdown, bullet points, or special formatting).",
-    val model: String = "gpt-4o-mini"
+    val model: String = "gpt-4o-mini",
+    val provider: String = "openai" // Default to OpenAI
 )
 
 // Class that manages app settings using DataStore
@@ -43,6 +44,7 @@ class SettingsStore(private val context: Context) {
     private val apiKeyKey = stringPreferencesKey("api_key")
     private val systemPromptKey = stringPreferencesKey("system_prompt")
     private val modelKey = stringPreferencesKey("model")
+    private val providerKey = stringPreferencesKey("provider")
 
     // Get stored API key
     val apiKeyFlow: Flow<String> = context.settingsDataStore.data
@@ -68,7 +70,8 @@ class SettingsStore(private val context: Context) {
             AppSettings(
                 apiKey = preferences[apiKeyKey] ?: "",
                 systemPrompt = preferences[systemPromptKey] ?: AppSettings().systemPrompt,
-                model = preferences[modelKey] ?: AppSettings().model
+                model = preferences[modelKey] ?: AppSettings().model,
+                provider = preferences[providerKey] ?: AppSettings().provider
             )
         }
     
@@ -93,12 +96,20 @@ class SettingsStore(private val context: Context) {
         }
     }
     
+    // Save provider
+    suspend fun saveProvider(provider: String) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[providerKey] = provider
+        }
+    }
+    
     // Save all settings
     suspend fun saveSettings(settings: AppSettings) {
         context.settingsDataStore.edit { preferences ->
             preferences[apiKeyKey] = settings.apiKey
             preferences[systemPromptKey] = settings.systemPrompt
             preferences[modelKey] = settings.model
+            preferences[providerKey] = settings.provider
         }
     }
 } 
