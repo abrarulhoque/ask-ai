@@ -23,7 +23,17 @@ AskAI is an Android application designed to help non-native English speakers und
 1. Clone the repository
 2. Open the project in Android Studio
 3. Build and run the app
-4. Configure your OpenAI API key in the settings
+4. Configure your OpenAI API key in the settings screen of the app
+
+### API Key Configuration
+
+For security reasons, the app does not include an OpenAI API key by default. You need to:
+
+1. Obtain an API key from [OpenAI's platform](https://platform.openai.com)
+2. Enter your API key in the app's settings screen
+3. The app will save your API key securely using Android's DataStore
+
+Alternatively, for development purposes, you can modify the `buildConfigField` in `app/build.gradle.kts` to include your API key.
 
 ## Technical Stack
 

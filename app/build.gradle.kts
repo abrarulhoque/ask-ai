@@ -37,7 +37,7 @@ android {
             // Don't minify debug builds
             isMinifyEnabled = false
             isShrinkResources = false
-            buildConfigField("String", "OPENAI_API_KEY", "\"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\"")
+            buildConfigField("String", "OPENAI_API_KEY", "\"YOUR_API_KEY_HERE\"")
         }
     }
     
