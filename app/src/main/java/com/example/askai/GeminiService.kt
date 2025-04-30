@@ -2,53 +2,50 @@ package com.example.askai
 
 import android.util.Log
 import com.example.askai.data.SettingsStore
-import com.google.android.libraries.ai.TextGenerationRequest
-import com.google.android.libraries.ai.GeminiClient
+import com.google.ai.client.generativeai.GenerativeModel
+import com.google.ai.client.generativeai.type.GenerationConfig
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.suspendCancellableCoroutine
-import kotlin.coroutines.resume
 
 class GeminiService(private val settingsStore: SettingsStore) : AIService {
     
-    private suspend fun getGeminiClient(): GeminiClient {
-        val apiKey = settingsStore.apiKeyFlow.first()
-        return GeminiClient.create(apiKey = apiKey)
+    private suspend fun getGenerativeModel(): GenerativeModel {
+        val settings = settingsStore.settingsFlow.first()
+        val apiKey = settingsStore.geminiApiKeyFlow.first()
+        
+        // Ensure we're using a valid Gemini model
+        val modelName = if (settings.model.startsWith("gemini")) {
+            settings.model
+        } else {
+            "gemini-2.0-flash" // Default to Gemini 2.0 Flash if not set correctly
+        }
+        
+        return GenerativeModel(
+            modelName = modelName,
+            apiKey = apiKey
+        )
     }
     
-    suspend fun getDefinition(text: String): String {
+    override suspend fun getDefinition(text: String): String {
         try {
             val settings = settingsStore.settingsFlow.first()
             
-            if (settings.apiKey.isEmpty()) {
+            if (settings.geminiApiKey.isEmpty()) {
                 return "Error: Gemini API key not configured. Please go to Settings and enter your API key."
             }
             
-            val client = getGeminiClient()
+            val model = getGenerativeModel()
             
-            val request = TextGenerationRequest.newBuilder()
-                .setModel(settings.model) // e.g., "gemini-1.5-flash" or "gemini-2.0-flash"
-                .setPrompt(
-                    """
-                    ${settings.systemPrompt}
-                    
-                    provided text by user: "${text}"
-                    """
-                )
-                .build()
+            val prompt = """
+                ${settings.systemPrompt}
+                
+                provided text by user: "${text}"
+            """.trimIndent()
             
-            // Convert callback to coroutine
-            return suspendCancellableCoroutine { continuation ->
-                client.generateText(request)
-                    .addOnSuccessListener { response ->
-                        val result = response.text
-                        continuation.resume(result)
-                    }
-                    .addOnFailureListener { e ->
-                        Log.e("GeminiService", "Error: ${e.message}")
-                        continuation.resume("Error getting definition: ${e.message}")
-                    }
-            }
+            val response = model.generateContent(prompt)
+            return response.text ?: "No definition available."
+            
         } catch (e: Exception) {
+            Log.e("GeminiService", "Error: ${e.message}")
             return "Error getting definition: ${e.message}"
         }
     }

@@ -47,7 +47,8 @@ fun SettingsScreen(
 ) {
     val coroutineScope = rememberCoroutineScope()
     
-    var apiKey by remember { mutableStateOf("") }
+    var openaiApiKey by remember { mutableStateOf("") }
+    var geminiApiKey by remember { mutableStateOf("") }
     var systemPrompt by remember { mutableStateOf("") }
     var modelName by remember { mutableStateOf("") }
     var provider by remember { mutableStateOf("openai") }
@@ -56,7 +57,8 @@ fun SettingsScreen(
     // Load current settings
     LaunchedEffect(settingsStore) {
         val settings = settingsStore.settingsFlow.first()
-        apiKey = settings.apiKey
+        openaiApiKey = settings.openaiApiKey
+        geminiApiKey = settings.geminiApiKey
         systemPrompt = settings.systemPrompt
         modelName = settings.model
         provider = settings.provider
@@ -97,14 +99,24 @@ fun SettingsScreen(
             SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
                 SegmentedButton(
                     selected = provider == "openai",
-                    onClick = { provider = "openai" },
+                    onClick = { 
+                        provider = "openai" 
+                        if (modelName.startsWith("gemini")) {
+                            modelName = "gpt-4o-mini"
+                        }
+                    },
                     shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
                 ) {
                     Text("OpenAI")
                 }
                 SegmentedButton(
                     selected = provider == "gemini",
-                    onClick = { provider = "gemini" },
+                    onClick = { 
+                        provider = "gemini" 
+                        if (!modelName.startsWith("gemini")) {
+                            modelName = "gemini-2.0-flash"
+                        }
+                    },
                     shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
                 ) {
                     Text("Gemini")
@@ -122,8 +134,14 @@ fun SettingsScreen(
             Spacer(modifier = Modifier.height(16.dp))
             
             OutlinedTextField(
-                value = apiKey,
-                onValueChange = { apiKey = it },
+                value = if (provider == "openai") openaiApiKey else geminiApiKey,
+                onValueChange = { 
+                    if (provider == "openai") {
+                        openaiApiKey = it
+                    } else {
+                        geminiApiKey = it
+                    }
+                },
                 label = { Text("API Key") },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true
@@ -173,7 +191,8 @@ fun SettingsScreen(
                     isSaving = true
                     coroutineScope.launch {
                         val settings = AppSettings(
-                            apiKey = apiKey,
+                            openaiApiKey = openaiApiKey,
+                            geminiApiKey = geminiApiKey,
                             systemPrompt = systemPrompt,
                             model = modelName,
                             provider = provider

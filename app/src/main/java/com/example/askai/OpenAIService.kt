@@ -13,7 +13,7 @@ import kotlinx.coroutines.flow.first
 class OpenAIService(private val settingsStore: SettingsStore) : AIService {
     
     private suspend fun getOpenAI(): OpenAI {
-        val apiKey = settingsStore.apiKeyFlow.first()
+        val apiKey = settingsStore.openaiApiKeyFlow.first()
         
         return OpenAI(
             config = OpenAIConfig(
@@ -23,11 +23,11 @@ class OpenAIService(private val settingsStore: SettingsStore) : AIService {
         )
     }
     
-    suspend fun getDefinition(text: String): String {
+    override suspend fun getDefinition(text: String): String {
         try {
             val settings = settingsStore.settingsFlow.first()
             
-            if (settings.apiKey.isEmpty()) {
+            if (settings.openaiApiKey.isEmpty()) {
                 return "Error: OpenAI API key not configured. Please go to Settings and enter your API key."
             }
             

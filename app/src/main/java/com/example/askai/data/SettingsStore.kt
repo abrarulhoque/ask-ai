@@ -16,7 +16,8 @@ val Context.settingsDataStore: DataStore<Preferences> by preferencesDataStore(na
 // Data class for app settings
 @Serializable
 data class AppSettings(
-    val apiKey: String = "",
+    val openaiApiKey: String = "",
+    val geminiApiKey: String = "",
     val systemPrompt: String = "You are a friendly assistant helping non-native English speakers understand English vocabulary and expressions. Your explanations use simple, clear language.\n" +
             "For Single Words:\n" +
             "\n" +
@@ -35,21 +36,48 @@ data class AppSettings(
             "Always use plain text format (no markdown, bullet points, or special formatting).",
     val model: String = "gpt-4o-mini",
     val provider: String = "openai" // Default to OpenAI
-)
+) {
+    // Get the appropriate API key based on current provider
+    val apiKey: String
+        get() = when (provider) {
+            "gemini" -> geminiApiKey
+            else -> openaiApiKey
+        }
+}
 
 // Class that manages app settings using DataStore
 class SettingsStore(private val context: Context) {
     
     // Keys for storing settings
-    private val apiKeyKey = stringPreferencesKey("api_key")
+    private val openaiApiKeyKey = stringPreferencesKey("openai_api_key")
+    private val geminiApiKeyKey = stringPreferencesKey("gemini_api_key")
     private val systemPromptKey = stringPreferencesKey("system_prompt")
     private val modelKey = stringPreferencesKey("model")
     private val providerKey = stringPreferencesKey("provider")
 
-    // Get stored API key
+    // Legacy key for backward compatibility
+    private val legacyApiKeyKey = stringPreferencesKey("api_key")
+
+    // Get stored API key based on current provider
     val apiKeyFlow: Flow<String> = context.settingsDataStore.data
         .map { preferences ->
-            preferences[apiKeyKey] ?: ""
+            val provider = preferences[providerKey] ?: AppSettings().provider
+            when (provider) {
+                "gemini" -> preferences[geminiApiKeyKey] ?: preferences[legacyApiKeyKey] ?: ""
+                else -> preferences[openaiApiKeyKey] ?: preferences[legacyApiKeyKey] ?: ""
+            }
+        }
+
+    // Get OpenAI API key
+    val openaiApiKeyFlow: Flow<String> = context.settingsDataStore.data
+        .map { preferences ->
+            preferences[openaiApiKeyKey] ?: preferences[legacyApiKeyKey] ?: ""
+        }
+        
+    // Get Gemini API key
+    val geminiApiKeyFlow: Flow<String> = context.settingsDataStore.data
+        .map { preferences ->
+            preferences[geminiApiKeyKey] ?: ""
         }
 
     // Get stored system prompt
@@ -61,24 +89,47 @@ class SettingsStore(private val context: Context) {
     // Get stored model
     val modelFlow: Flow<String> = context.settingsDataStore.data
         .map { preferences ->
-            preferences[modelKey] ?: AppSettings().model
+            val model = preferences[modelKey] ?: AppSettings().model
+            val provider = preferences[providerKey] ?: AppSettings().provider
+            
+            // Return provider-appropriate model
+            when {
+                provider == "gemini" && !model.startsWith("gemini") -> "gemini-2.0-flash"
+                provider == "openai" && model.startsWith("gemini") -> "gpt-4o-mini"
+                else -> model
+            }
         }
 
     // Get all settings as a Flow
     val settingsFlow: Flow<AppSettings> = context.settingsDataStore.data
         .map { preferences ->
+            // Handle migration from legacy single API key
+            val legacyApiKey = preferences[legacyApiKeyKey] ?: ""
+            
+            // Use openai/gemini-specific keys if they exist, otherwise fall back to legacy key
+            val openaiApiKey = preferences[openaiApiKeyKey] ?: legacyApiKey
+            val geminiApiKey = preferences[geminiApiKeyKey] ?: legacyApiKey
+            
             AppSettings(
-                apiKey = preferences[apiKeyKey] ?: "",
+                openaiApiKey = openaiApiKey,
+                geminiApiKey = geminiApiKey,
                 systemPrompt = preferences[systemPromptKey] ?: AppSettings().systemPrompt,
                 model = preferences[modelKey] ?: AppSettings().model,
                 provider = preferences[providerKey] ?: AppSettings().provider
             )
         }
     
-    // Save API key
-    suspend fun saveApiKey(apiKey: String) {
+    // Save OpenAI API key
+    suspend fun saveOpenAIApiKey(apiKey: String) {
         context.settingsDataStore.edit { preferences ->
-            preferences[apiKeyKey] = apiKey
+            preferences[openaiApiKeyKey] = apiKey
+        }
+    }
+    
+    // Save Gemini API key
+    suspend fun saveGeminiApiKey(apiKey: String) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[geminiApiKeyKey] = apiKey
         }
     }
     
@@ -106,7 +157,8 @@ class SettingsStore(private val context: Context) {
     // Save all settings
     suspend fun saveSettings(settings: AppSettings) {
         context.settingsDataStore.edit { preferences ->
-            preferences[apiKeyKey] = settings.apiKey
+            preferences[openaiApiKeyKey] = settings.openaiApiKey
+            preferences[geminiApiKeyKey] = settings.geminiApiKey
             preferences[systemPromptKey] = settings.systemPrompt
             preferences[modelKey] = settings.model
             preferences[providerKey] = settings.provider

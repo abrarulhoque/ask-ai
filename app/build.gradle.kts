@@ -100,7 +100,7 @@ dependencies {
     implementation("io.ktor:ktor-client-android:2.3.7")
     
     // Google Gemini API
-    implementation("com.google.android.libraries.ai:ai-gemini:1.0.0")
+    implementation("com.google.ai.client.generativeai:generativeai:0.1.1")
     
     // Datastore for preferences - lightweight storage
     implementation("androidx.datastore:datastore-preferences:1.0.0")
