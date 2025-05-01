@@ -12,7 +12,7 @@ import kotlinx.coroutines.flow.first
 
 class OpenAIService(private val settingsStore: SettingsStore) : AIService {
     
-    private suspend fun getOpenAI(): OpenAI {
+    suspend fun getOpenAI(): OpenAI {
         val apiKey = settingsStore.openaiApiKeyFlow.first()
         
         return OpenAI(

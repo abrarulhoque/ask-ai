@@ -8,6 +8,14 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC"/>
 
+    <!-- Add queries element for Android 11+ package visibility -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.PROCESS_TEXT" />
+            <data android:mimeType="text/plain" />
+        </intent>
+    </queries>
+
     <application
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
@@ -37,6 +45,39 @@
                 <action android:name="android.intent.action.PROCESS_TEXT" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:mimeType="text/plain" />
+            </intent-filter>
+            
+            <!-- Add VIEW intent filter to make the action visible in all apps -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" />
+            </intent-filter>
+            
+            <meta-data
+                android:name="android.intent.extra.PROCESS_TEXT_READONLY"
+                android:value="false" />
+        </activity>
+        
+        <!-- Revise Text Activity for revising selected text -->
+        <activity
+            android:name=".ReviseTextActivity"
+            android:exported="true"
+            android:label="Revise"
+            android:theme="@style/Theme.AskAI.Transparent">
+            <intent-filter>
+                <action android:name="android.intent.action.PROCESS_TEXT" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+            
+            <!-- Add VIEW intent filter to make the action visible in all apps -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" />
             </intent-filter>
             
             <meta-data

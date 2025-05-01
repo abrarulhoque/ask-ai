@@ -23,6 +23,7 @@ import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -293,6 +294,167 @@ class OverlayService : Service(), LifecycleOwner, ViewModelStoreOwner, SavedStat
             }
         }
     }
+
+    // New method to show overlay with an optional copy button
+    fun showOverlayWithCopy(text: String, onCopy: (() -> Unit)?, showCopyButton: Boolean) {
+        Log.d(TAG, "OverlayService - showOverlayWithCopy with text: $text")
+
+        // Use the member function isViewAttached
+        if (::overlayView.isInitialized && isViewAttached(overlayView)) {
+            // Update existing overlay
+            val composeView = overlayView.findViewById<ComposeView>(R.id.composeView)
+            // Pass hideOverlay reference and onCopy callback
+            composeView.setContent {
+                AskAITheme {
+                    PopupContentWithCopy(
+                        text = text, 
+                        onClose = ::hideOverlay, 
+                        onCopy = onCopy,
+                        showCopyButton = showCopyButton
+                    )
+                }
+            }
+            return
+        }
+        
+        // Create and show new overlay
+        try {
+            val inflater = LayoutInflater.from(this)
+            overlayView = inflater.inflate(R.layout.overlay_layout, null)
+            
+            // Set up the ComposeView
+            val composeView = overlayView.findViewById<ComposeView>(R.id.composeView)
+
+            // Set the essential ViewTree owners on the root view BEFORE setContent on the child ComposeView
+            overlayView.setViewTreeLifecycleOwner(this)
+            overlayView.setViewTreeViewModelStoreOwner(this)
+            overlayView.setViewTreeSavedStateRegistryOwner(this)
+
+            composeView.setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
+            // Pass hideOverlay reference and onCopy callback
+            composeView.setContent {
+                AskAITheme {
+                    PopupContentWithCopy(
+                        text = text, 
+                        onClose = ::hideOverlay, 
+                        onCopy = onCopy,
+                        showCopyButton = showCopyButton
+                    )
+                }
+            }
+            
+            // Configure the layout parameters
+            val params = WindowManager.LayoutParams().apply {
+                width = WindowManager.LayoutParams.WRAP_CONTENT
+                height = WindowManager.LayoutParams.WRAP_CONTENT
+                
+                // Choose the appropriate window type based on API level
+                type = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+                } else {
+                    WindowManager.LayoutParams.TYPE_PHONE
+                }
+                
+                flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                        WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+                        WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL
+                format = PixelFormat.TRANSLUCENT
+                gravity = Gravity.CENTER
+                x = 0
+                y = 0
+            }
+            
+            // Make the overlay draggable
+            overlayView.setOnTouchListener { view, event ->
+                when (event.action) {
+                    MotionEvent.ACTION_DOWN -> {
+                        initialX = params.x
+                        initialY = params.y
+                        initialTouchX = event.rawX
+                        initialTouchY = event.rawY
+                        true
+                    }
+                    MotionEvent.ACTION_MOVE -> {
+                        params.x = initialX + (event.rawX - initialTouchX).toInt()
+                        params.y = initialY + (event.rawY - initialTouchY).toInt()
+                        windowManager.updateViewLayout(overlayView, params)
+                        true
+                    }
+                    else -> false
+                }
+            }
+            
+            // Add the view to the window
+            windowManager.addView(overlayView, params)
+            Log.d(TAG, "OverlayService - View added to window")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error showing overlay: ${e.message}")
+            e.printStackTrace()
+        }
+    }
+
+    // New PopupContent with copy button
+    @Composable
+    fun PopupContentWithCopy(
+        text: String, 
+        onClose: () -> Unit, 
+        onCopy: (() -> Unit)?, 
+        showCopyButton: Boolean
+    ) {
+        Card(
+            modifier = Modifier
+                .padding(16.dp)
+                .widthIn(max = 300.dp)
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Revised Text",
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                    IconButton(
+                        onClick = onClose,
+                        modifier = Modifier.size(24.dp)
+                    ) {
+                        Icon(
+                            painter = painterResource(id = android.R.drawable.ic_menu_close_clear_cancel),
+                            contentDescription = "Close"
+                        )
+                    }
+                }
+                
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                Text(
+                    text = text,
+                    style = MaterialTheme.typography.bodyMedium,
+                    textAlign = TextAlign.Start,
+                    modifier = Modifier.padding(vertical = 8.dp)
+                )
+                
+                if (showCopyButton && onCopy != null) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    
+                    Button(
+                        onClick = {
+                            onCopy()
+                            // Don't auto-close after copying
+                        },
+                        modifier = Modifier.align(Alignment.End)
+                    ) {
+                        Text("Copy to Clipboard")
+                    }
+                }
+            }
+        }
+    }
+
     override fun onDestroy() {
         // Dispatch lifecycle events manually before calling super.onDestroy()
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_PAUSE)

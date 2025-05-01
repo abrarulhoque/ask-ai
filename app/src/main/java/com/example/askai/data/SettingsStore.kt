@@ -34,6 +34,16 @@ data class AppSettings(
             "Identify any idioms or expressions that might confuse learners\n" +
             "\n" +
             "Always use plain text format (no markdown, bullet points, or special formatting).",
+    val reviseSystemPrompt: String = "You are a professional writing assistant. Your task is to revise and improve the text provided by the user.\n" +
+            "Follow these guidelines:\n" +
+            "\n" +
+            "1. Improve grammar, spelling, and punctuation\n" +
+            "2. Enhance clarity and readability\n" +
+            "3. Make the text more concise where appropriate\n" +
+            "4. Maintain the original meaning and tone\n" +
+            "5. Format your response as the revised text only without any explanation\n" +
+            "\n" +
+            "Do not add introductory phrases like 'Here's the revised text:'. Just provide the improved version.",
     val model: String = "gpt-4o-mini",
     val provider: String = "openai" // Default to OpenAI
 ) {
@@ -52,6 +62,7 @@ class SettingsStore(private val context: Context) {
     private val openaiApiKeyKey = stringPreferencesKey("openai_api_key")
     private val geminiApiKeyKey = stringPreferencesKey("gemini_api_key")
     private val systemPromptKey = stringPreferencesKey("system_prompt")
+    private val reviseSystemPromptKey = stringPreferencesKey("revise_system_prompt")
     private val modelKey = stringPreferencesKey("model")
     private val providerKey = stringPreferencesKey("provider")
 
@@ -86,6 +97,12 @@ class SettingsStore(private val context: Context) {
             preferences[systemPromptKey] ?: AppSettings().systemPrompt
         }
 
+    // Get stored revise system prompt
+    val reviseSystemPromptFlow: Flow<String> = context.settingsDataStore.data
+        .map { preferences ->
+            preferences[reviseSystemPromptKey] ?: AppSettings().reviseSystemPrompt
+        }
+
     // Get stored model
     val modelFlow: Flow<String> = context.settingsDataStore.data
         .map { preferences ->
@@ -114,6 +131,7 @@ class SettingsStore(private val context: Context) {
                 openaiApiKey = openaiApiKey,
                 geminiApiKey = geminiApiKey,
                 systemPrompt = preferences[systemPromptKey] ?: AppSettings().systemPrompt,
+                reviseSystemPrompt = preferences[reviseSystemPromptKey] ?: AppSettings().reviseSystemPrompt,
                 model = preferences[modelKey] ?: AppSettings().model,
                 provider = preferences[providerKey] ?: AppSettings().provider
             )
@@ -140,6 +158,13 @@ class SettingsStore(private val context: Context) {
         }
     }
     
+    // Save revise system prompt
+    suspend fun saveReviseSystemPrompt(reviseSystemPrompt: String) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[reviseSystemPromptKey] = reviseSystemPrompt
+        }
+    }
+    
     // Save model
     suspend fun saveModel(model: String) {
         context.settingsDataStore.edit { preferences ->
@@ -160,6 +185,7 @@ class SettingsStore(private val context: Context) {
             preferences[openaiApiKeyKey] = settings.openaiApiKey
             preferences[geminiApiKeyKey] = settings.geminiApiKey
             preferences[systemPromptKey] = settings.systemPrompt
+            preferences[reviseSystemPromptKey] = settings.reviseSystemPrompt
             preferences[modelKey] = settings.model
             preferences[providerKey] = settings.provider
         }

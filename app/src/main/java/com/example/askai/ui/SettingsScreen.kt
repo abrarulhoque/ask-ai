@@ -50,6 +50,7 @@ fun SettingsScreen(
     var openaiApiKey by remember { mutableStateOf("") }
     var geminiApiKey by remember { mutableStateOf("") }
     var systemPrompt by remember { mutableStateOf("") }
+    var reviseSystemPrompt by remember { mutableStateOf("") }
     var modelName by remember { mutableStateOf("") }
     var provider by remember { mutableStateOf("openai") }
     var isSaving by remember { mutableStateOf(false) }
@@ -60,6 +61,7 @@ fun SettingsScreen(
         openaiApiKey = settings.openaiApiKey
         geminiApiKey = settings.geminiApiKey
         systemPrompt = settings.systemPrompt
+        reviseSystemPrompt = settings.reviseSystemPrompt
         modelName = settings.model
         provider = settings.provider
     }
@@ -184,6 +186,25 @@ fun SettingsScreen(
                 maxLines = 10
             )
             
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            Text(
+                text = "Revise System Prompt",
+                style = MaterialTheme.typography.titleMedium
+            )
+            
+            Spacer(modifier = Modifier.height(8.dp))
+            
+            OutlinedTextField(
+                value = reviseSystemPrompt,
+                onValueChange = { reviseSystemPrompt = it },
+                label = { Text("Revise System Prompt") },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(200.dp),
+                maxLines = 10
+            )
+            
             Spacer(modifier = Modifier.height(24.dp))
             
             Button(
@@ -194,6 +215,7 @@ fun SettingsScreen(
                             openaiApiKey = openaiApiKey,
                             geminiApiKey = geminiApiKey,
                             systemPrompt = systemPrompt,
+                            reviseSystemPrompt = reviseSystemPrompt,
                             model = modelName,
                             provider = provider
                         )

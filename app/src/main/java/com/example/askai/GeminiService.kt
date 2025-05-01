@@ -8,7 +8,7 @@ import kotlinx.coroutines.flow.first
 
 class GeminiService(private val settingsStore: SettingsStore) : AIService {
     
-    private suspend fun getGenerativeModel(): GenerativeModel {
+    suspend fun getGenerativeModel(): GenerativeModel {
         val settings = settingsStore.settingsFlow.first()
         val apiKey = settingsStore.geminiApiKeyFlow.first()
         
