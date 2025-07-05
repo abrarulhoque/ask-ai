@@ -4,11 +4,10 @@ import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
-// Removed: import android.app.Service 
 import android.content.Context
 import android.content.Intent
 import android.graphics.PixelFormat
-import android.os.Binder // Keep Binder for onBind
+import android.os.Binder
 import android.os.Build
 import android.os.IBinder
 import android.util.Log
@@ -17,28 +16,33 @@ import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
-import android.widget.TextView
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.FileCopy
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.max
+import androidx.compose.ui.unit.min
+import androidx.compose.ui.window.DialogProperties
 import androidx.core.app.NotificationCompat
-// Removed: import androidx.lifecycle.LifecycleService
-import android.app.Service // Use standard Service
+import android.app.Service
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.LifecycleRegistry
@@ -51,6 +55,9 @@ import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import com.example.askai.ui.theme.AskAITheme
+import com.mikepenz.markdown.m3.Markdown
+import com.mikepenz.markdown.m3.markdownColor
+import com.mikepenz.markdown.m3.markdownTypography
 
 // Extend standard Service and implement owner interfaces directly
 class OverlayService : Service(), LifecycleOwner, ViewModelStoreOwner, SavedStateRegistryOwner {
@@ -77,43 +84,39 @@ class OverlayService : Service(), LifecycleOwner, ViewModelStoreOwner, SavedStat
     private val savedStateRegistryController = SavedStateRegistryController.create(this)
     override val savedStateRegistry: SavedStateRegistry get() = savedStateRegistryController.savedStateRegistry
 
-    private val binder = LocalBinder() // Keep binder for communication if needed
+    private val binder = LocalBinder()
 
     inner class LocalBinder : Binder() {
         fun getService(): OverlayService = this@OverlayService
     }
 
-    // Standard Service onBind
     override fun onBind(intent: Intent?): IBinder {
-        // super.onBind(intent) // No super call needed for standard Service onBind unless extending another Binder service
         return binder
     }
 
     override fun onCreate() {
-        super.onCreate() // Call super for standard Service
+        super.onCreate()
         Log.d(TAG, "OverlayService - onCreate")
-        windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager // Use Context.WINDOW_SERVICE
+        windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
 
-        // Initialize SavedStateRegistryController and Lifecycle
-        savedStateRegistryController.performRestore(null) // Restore state if available
+        savedStateRegistryController.performRestore(null)
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_CREATE)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        super.onStartCommand(intent, flags, startId) // Call super for standard Service
+        super.onStartCommand(intent, flags, startId)
         Log.d(TAG, "OverlayService - onStartCommand")
-        startForegroundAndMoveLifecycle() // Renamed for clarity
-        return START_STICKY // Keep using START_STICKY as before
+        startForegroundAndMoveLifecycle()
+        return START_STICKY
     }
 
-    // Renamed to reflect lifecycle management
     private fun startForegroundAndMoveLifecycle() {
         createNotificationChannel()
 
         val notificationIntent = Intent(this, MainActivity::class.java)
         val pendingIntent = PendingIntent.getActivity(
             this, 0, notificationIntent,
-            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT // Use IMMUTABLE for API 23+
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
 
         val notification: Notification = NotificationCompat.Builder(this, CHANNEL_ID)
@@ -123,8 +126,7 @@ class OverlayService : Service(), LifecycleOwner, ViewModelStoreOwner, SavedStat
             .setContentIntent(pendingIntent)
             .build()
 
-        startForeground(NOTIFICATION_ID, notification) // Standard Service startForeground call
-        // Dispatch lifecycle events manually
+        startForeground(NOTIFICATION_ID, notification)
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_START)
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_RESUME)
     }
@@ -137,13 +139,12 @@ class OverlayService : Service(), LifecycleOwner, ViewModelStoreOwner, SavedStat
                 NotificationManager.IMPORTANCE_DEFAULT
             ).apply {
                 description = "Channel for AskAI definitions"
-            } // Closing brace for apply
-            val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager // Use Context.NOTIFICATION_SERVICE
+            }
+            val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             notificationManager.createNotificationChannel(channel)
-        } // Closing brace for if
+        }
     }
 
-    // Moved isViewAttached outside showOverlay
     private fun isViewAttached(view: View): Boolean {
         return try {
             view.isAttachedToWindow
@@ -154,47 +155,63 @@ class OverlayService : Service(), LifecycleOwner, ViewModelStoreOwner, SavedStat
 
     fun showOverlay(definition: String) {
         Log.d(TAG, "OverlayService - showOverlay with definition: $definition")
+        showOverlayInternal(definition, "Definition", false, null)
+    }
 
-        // Use the member function isViewAttached
+    fun showOverlayWithCopy(text: String, onCopy: (() -> Unit)?, showCopyButton: Boolean) {
+        Log.d(TAG, "OverlayService - showOverlayWithCopy with text: $text")
+        showOverlayInternal(text, "Revised Text", showCopyButton, onCopy)
+    }
+
+    private fun showOverlayInternal(
+        content: String, 
+        title: String, 
+        showCopyButton: Boolean, 
+        onCopy: (() -> Unit)?
+    ) {
         if (::overlayView.isInitialized && isViewAttached(overlayView)) {
-            // Update existing overlay
-            val composeView = overlayView.findViewById<ComposeView>(R.id.composeView) // Assuming R.id.composeView exists in overlay_layout.xml
-            // Pass hideOverlay reference
+            val composeView = overlayView.findViewById<ComposeView>(R.id.composeView)
             composeView.setContent {
                 AskAITheme {
-                    PopupContent(definition = definition, onClose = ::hideOverlay)
+                    EnhancedPopupContent(
+                        content = content,
+                        title = title,
+                        onClose = ::hideOverlay,
+                        onCopy = onCopy,
+                        showCopyButton = showCopyButton
+                    )
                 }
             }
             return
         }
         
-        // Create and show new overlay
         try {
             val inflater = LayoutInflater.from(this)
             overlayView = inflater.inflate(R.layout.overlay_layout, null)
             
-            // Set up the ComposeView
             val composeView = overlayView.findViewById<ComposeView>(R.id.composeView)
 
-            // Set the essential ViewTree owners on the root view BEFORE setContent on the child ComposeView
             overlayView.setViewTreeLifecycleOwner(this)
             overlayView.setViewTreeViewModelStoreOwner(this)
             overlayView.setViewTreeSavedStateRegistryOwner(this)
 
             composeView.setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
-            // Pass hideOverlay reference
             composeView.setContent {
                 AskAITheme {
-                    PopupContent(definition = definition, onClose = ::hideOverlay)
+                    EnhancedPopupContent(
+                        content = content,
+                        title = title,
+                        onClose = ::hideOverlay,
+                        onCopy = onCopy,
+                        showCopyButton = showCopyButton
+                    )
                 }
             }
             
-            // Configure the layout parameters
             val params = WindowManager.LayoutParams().apply {
                 width = WindowManager.LayoutParams.WRAP_CONTENT
                 height = WindowManager.LayoutParams.WRAP_CONTENT
                 
-                // Choose the appropriate window type based on API level
                 type = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                     WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
                 } else {
@@ -210,7 +227,6 @@ class OverlayService : Service(), LifecycleOwner, ViewModelStoreOwner, SavedStat
                 y = 0
             }
             
-            // Make the overlay draggable
             overlayView.setOnTouchListener { view, event ->
                 when (event.action) {
                     MotionEvent.ACTION_DOWN -> {
@@ -230,7 +246,6 @@ class OverlayService : Service(), LifecycleOwner, ViewModelStoreOwner, SavedStat
                 }
             }
             
-            // Add the view to the window
             windowManager.addView(overlayView, params)
             Log.d(TAG, "OverlayService - View added to window")
         } catch (e: Exception) {
@@ -239,7 +254,6 @@ class OverlayService : Service(), LifecycleOwner, ViewModelStoreOwner, SavedStat
         }
     }
 
-    // Moved hideOverlay outside showOverlay (it was already outside, just confirming placement)
     fun hideOverlay() {
         if (::overlayView.isInitialized && isViewAttached(overlayView)) {
             try {
@@ -252,203 +266,170 @@ class OverlayService : Service(), LifecycleOwner, ViewModelStoreOwner, SavedStat
         }
     }
 
-    // Moved PopupContent outside showOverlay
+    @OptIn(ExperimentalMaterial3Api::class)
     @Composable
-    fun PopupContent(definition: String, onClose: () -> Unit) {
-        Card(
-            modifier = Modifier
-                .padding(16.dp)
-                .widthIn(max = 300.dp)
-        ) {
-            Column(
-                modifier = Modifier.padding(16.dp)
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "Definition",
-                        style = MaterialTheme.typography.titleMedium
-                    )
-                    IconButton(
-                        onClick = onClose,
-                        modifier = Modifier.size(24.dp)
-                    ) {
-                        Icon(
-                            painter = painterResource(id = android.R.drawable.ic_menu_close_clear_cancel),
-                            contentDescription = "Close"
-                        )
-                    }
-                }
-                
-                Spacer(modifier = Modifier.height(8.dp))
-                
-                Text(
-                    text = definition,
-                    style = MaterialTheme.typography.bodyMedium,
-                    textAlign = TextAlign.Start,
-                    modifier = Modifier.padding(vertical = 8.dp)
-                )
-            }
-        }
-    }
-
-    // New method to show overlay with an optional copy button
-    fun showOverlayWithCopy(text: String, onCopy: (() -> Unit)?, showCopyButton: Boolean) {
-        Log.d(TAG, "OverlayService - showOverlayWithCopy with text: $text")
-
-        // Use the member function isViewAttached
-        if (::overlayView.isInitialized && isViewAttached(overlayView)) {
-            // Update existing overlay
-            val composeView = overlayView.findViewById<ComposeView>(R.id.composeView)
-            // Pass hideOverlay reference and onCopy callback
-            composeView.setContent {
-                AskAITheme {
-                    PopupContentWithCopy(
-                        text = text, 
-                        onClose = ::hideOverlay, 
-                        onCopy = onCopy,
-                        showCopyButton = showCopyButton
-                    )
-                }
-            }
-            return
-        }
-        
-        // Create and show new overlay
-        try {
-            val inflater = LayoutInflater.from(this)
-            overlayView = inflater.inflate(R.layout.overlay_layout, null)
-            
-            // Set up the ComposeView
-            val composeView = overlayView.findViewById<ComposeView>(R.id.composeView)
-
-            // Set the essential ViewTree owners on the root view BEFORE setContent on the child ComposeView
-            overlayView.setViewTreeLifecycleOwner(this)
-            overlayView.setViewTreeViewModelStoreOwner(this)
-            overlayView.setViewTreeSavedStateRegistryOwner(this)
-
-            composeView.setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
-            // Pass hideOverlay reference and onCopy callback
-            composeView.setContent {
-                AskAITheme {
-                    PopupContentWithCopy(
-                        text = text, 
-                        onClose = ::hideOverlay, 
-                        onCopy = onCopy,
-                        showCopyButton = showCopyButton
-                    )
-                }
-            }
-            
-            // Configure the layout parameters
-            val params = WindowManager.LayoutParams().apply {
-                width = WindowManager.LayoutParams.WRAP_CONTENT
-                height = WindowManager.LayoutParams.WRAP_CONTENT
-                
-                // Choose the appropriate window type based on API level
-                type = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
-                } else {
-                    WindowManager.LayoutParams.TYPE_PHONE
-                }
-                
-                flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                        WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
-                        WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL
-                format = PixelFormat.TRANSLUCENT
-                gravity = Gravity.CENTER
-                x = 0
-                y = 0
-            }
-            
-            // Make the overlay draggable
-            overlayView.setOnTouchListener { view, event ->
-                when (event.action) {
-                    MotionEvent.ACTION_DOWN -> {
-                        initialX = params.x
-                        initialY = params.y
-                        initialTouchX = event.rawX
-                        initialTouchY = event.rawY
-                        true
-                    }
-                    MotionEvent.ACTION_MOVE -> {
-                        params.x = initialX + (event.rawX - initialTouchX).toInt()
-                        params.y = initialY + (event.rawY - initialTouchY).toInt()
-                        windowManager.updateViewLayout(overlayView, params)
-                        true
-                    }
-                    else -> false
-                }
-            }
-            
-            // Add the view to the window
-            windowManager.addView(overlayView, params)
-            Log.d(TAG, "OverlayService - View added to window")
-        } catch (e: Exception) {
-            Log.e(TAG, "Error showing overlay: ${e.message}")
-            e.printStackTrace()
-        }
-    }
-
-    // New PopupContent with copy button
-    @Composable
-    fun PopupContentWithCopy(
-        text: String, 
-        onClose: () -> Unit, 
-        onCopy: (() -> Unit)?, 
+    fun EnhancedPopupContent(
+        content: String,
+        title: String,
+        onClose: () -> Unit,
+        onCopy: (() -> Unit)?,
         showCopyButton: Boolean
     ) {
+        val configuration = LocalConfiguration.current
+        val density = LocalDensity.current
+        
+        // Calculate responsive dimensions
+        val screenWidth = with(density) { configuration.screenWidthDp.dp }
+        val screenHeight = with(density) { configuration.screenHeightDp.dp }
+        
+        // Make popup responsive - wider on larger screens
+        val popupWidth = min(screenWidth * 0.9f, 500.dp)
+        val maxPopupHeight = min(screenHeight * 0.8f, 600.dp)
+
         Card(
             modifier = Modifier
-                .padding(16.dp)
-                .widthIn(max = 300.dp)
+                .width(popupWidth)
+                .heightIn(max = maxPopupHeight)
+                .padding(16.dp),
+            elevation = CardDefaults.elevatedCardElevation(
+                defaultElevation = 8.dp
+            ),
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.elevatedCardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+            )
         ) {
             Column(
-                modifier = Modifier.padding(16.dp)
+                modifier = Modifier.fillMaxWidth()
             ) {
-                Row(
+                // Header with title and controls
+                Surface(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
                 ) {
-                    Text(
-                        text = "Revised Text",
-                        style = MaterialTheme.typography.titleMedium
-                    )
-                    IconButton(
-                        onClick = onClose,
-                        modifier = Modifier.size(24.dp)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp, vertical = 16.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(
-                            painter = painterResource(id = android.R.drawable.ic_menu_close_clear_cancel),
-                            contentDescription = "Close"
+                        Text(
+                            text = title,
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                            modifier = Modifier.weight(1f)
                         )
+                        
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            if (showCopyButton && onCopy != null) {
+                                IconButton(
+                                    onClick = onCopy,
+                                    colors = IconButtonDefaults.iconButtonColors(
+                                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                                    )
+                                ) {
+                                                                         Icon(
+                                         imageVector = Icons.Default.FileCopy,
+                                         contentDescription = "Copy to clipboard",
+                                         modifier = Modifier.size(20.dp)
+                                     )
+                                }
+                            }
+                            
+                            IconButton(
+                                onClick = onClose,
+                                colors = IconButtonDefaults.iconButtonColors(
+                                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = "Close",
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
                     }
                 }
                 
-                Spacer(modifier = Modifier.height(8.dp))
-                
-                Text(
-                    text = text,
-                    style = MaterialTheme.typography.bodyMedium,
-                    textAlign = TextAlign.Start,
-                    modifier = Modifier.padding(vertical = 8.dp)
-                )
-                
-                if (showCopyButton && onCopy != null) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    
-                    Button(
-                        onClick = {
-                            onCopy()
-                            // Don't auto-close after copying
-                        },
-                        modifier = Modifier.align(Alignment.End)
+                // Scrollable content area with markdown support
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f, fill = false)
+                        .padding(20.dp)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .verticalScroll(rememberScrollState())
                     ) {
-                        Text("Copy to Clipboard")
+                        if (content.contains("*") || content.contains("#") || content.contains("`") || 
+                            content.contains("[") || content.contains("**") || content.contains("_")) {
+                            // Content appears to contain markdown, render with markdown
+                            Markdown(
+                                content = content,
+                                colors = markdownColor(
+                                    text = MaterialTheme.colorScheme.onSurface,
+                                    codeText = MaterialTheme.colorScheme.onSecondaryContainer,
+                                    codeBackground = MaterialTheme.colorScheme.secondaryContainer,
+                                    linkText = MaterialTheme.colorScheme.primary
+                                ),
+                                                                 typography = markdownTypography(
+                                     h1 = MaterialTheme.typography.headlineMedium,
+                                     h2 = MaterialTheme.typography.headlineSmall,
+                                     h3 = MaterialTheme.typography.titleLarge,
+                                     paragraph = MaterialTheme.typography.bodyLarge,
+                                     code = MaterialTheme.typography.bodyMedium.copy(
+                                         fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+                                     )
+                                 )
+                            )
+                        } else {
+                            // Plain text content
+                            Text(
+                                text = content,
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                lineHeight = MaterialTheme.typography.bodyLarge.lineHeight * 1.4
+                            )
+                        }
+                    }
+                }
+                
+                // Footer with additional actions if needed
+                if (showCopyButton && onCopy != null) {
+                    HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = 20.dp),
+                        color = MaterialTheme.colorScheme.outlineVariant
+                    )
+                    
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(20.dp),
+                        horizontalArrangement = Arrangement.End
+                    ) {
+                        FilledTonalButton(
+                            onClick = onCopy,
+                            colors = ButtonDefaults.filledTonalButtonColors(
+                                containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                            )
+                        ) {
+                                                         Icon(
+                                 imageVector = Icons.Default.FileCopy,
+                                 contentDescription = null,
+                                 modifier = Modifier.size(18.dp)
+                             )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Copy to Clipboard")
+                        }
                     }
                 }
             }
@@ -456,12 +437,11 @@ class OverlayService : Service(), LifecycleOwner, ViewModelStoreOwner, SavedStat
     }
 
     override fun onDestroy() {
-        // Dispatch lifecycle events manually before calling super.onDestroy()
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_PAUSE)
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_STOP)
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_DESTROY)
-        hideOverlay() // Ensure overlay is removed
-        super.onDestroy() // Call super for standard Service
+        hideOverlay()
+        super.onDestroy()
         Log.d(TAG, "OverlayService - onDestroy")
     }
 }

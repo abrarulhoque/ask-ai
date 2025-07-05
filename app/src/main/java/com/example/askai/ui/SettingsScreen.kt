@@ -53,6 +53,8 @@ fun SettingsScreen(
     var geminiApiKey by remember { mutableStateOf("") }
     var systemPrompt by remember { mutableStateOf("") }
     var reviseSystemPrompt by remember { mutableStateOf("") }
+    // NEW state for summary prompt
+    var summarySystemPrompt by remember { mutableStateOf("") }
     var modelName by remember { mutableStateOf("") }
     var provider by remember { mutableStateOf("openai") }
     var notificationEnabled by remember { mutableStateOf(false) }
@@ -66,6 +68,7 @@ fun SettingsScreen(
         geminiApiKey = settings.geminiApiKey
         systemPrompt = settings.systemPrompt
         reviseSystemPrompt = settings.reviseSystemPrompt
+        summarySystemPrompt = settings.summarySystemPrompt
         modelName = settings.model
         provider = settings.provider
         notificationEnabled = settings.notificationEnabled
@@ -211,6 +214,25 @@ fun SettingsScreen(
                 maxLines = 10
             )
             
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            Text(
+                text = "Summary System Prompt",
+                style = MaterialTheme.typography.titleMedium
+            )
+            
+            Spacer(modifier = Modifier.height(8.dp))
+            
+            OutlinedTextField(
+                value = summarySystemPrompt,
+                onValueChange = { summarySystemPrompt = it },
+                label = { Text("Summary System Prompt") },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(200.dp),
+                maxLines = 10
+            )
+            
             Spacer(modifier = Modifier.height(24.dp))
             
             Text(
@@ -269,6 +291,7 @@ fun SettingsScreen(
                             geminiApiKey = geminiApiKey,
                             systemPrompt = systemPrompt,
                             reviseSystemPrompt = reviseSystemPrompt,
+                            summarySystemPrompt = summarySystemPrompt,
                             model = modelName,
                             provider = provider,
                             notificationEnabled = notificationEnabled,

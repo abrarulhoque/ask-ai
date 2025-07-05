@@ -102,6 +102,8 @@ dependencies {
     implementation(libs.androidx.ui.graphics)
     debugImplementation(libs.androidx.ui.tooling)
     implementation(libs.androidx.material3)
+    implementation("androidx.compose.material:material:1.8.3")
+    implementation("androidx.compose.material:material-icons-extended")
 
     // OpenAI API Client - essential for functionality
     implementation("com.aallam.openai:openai-client:3.6.3")
@@ -135,6 +137,10 @@ dependencies {
     // Lifecycle components - select only what's needed
     implementation("androidx.lifecycle:lifecycle-service:2.7.0")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.7.0")
+
+    // Markdown renderer for enhanced text display in popups
+    implementation("com.mikepenz:multiplatform-markdown-renderer:0.35.0")
+    implementation("com.mikepenz:multiplatform-markdown-renderer-m3:0.35.0")
 
     // Test dependencies - only in test configurations
     testImplementation(libs.junit)

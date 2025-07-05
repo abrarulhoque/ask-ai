@@ -102,7 +102,31 @@
                 android:name="android.intent.extra.PROCESS_TEXT_READONLY"
                 android:value="false" />
         </activity>
-
+        
+        <!-- NEW: Summarize Text Activity for summarizing selected text -->
+        <activity
+            android:name=".SummarizeTextActivity"
+            android:exported="true"
+            android:label="Summarize"
+            android:theme="@style/Theme.AskAI.Transparent">
+            <intent-filter>
+                <action android:name="android.intent.action.PROCESS_TEXT" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+            
+            <!-- Add VIEW intent filter to make the action visible in all apps -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" />
+            </intent-filter>
+            
+            <meta-data
+                android:name="android.intent.extra.PROCESS_TEXT_READONLY"
+                android:value="false" />
+        </activity>
         <!-- Overlay Service -->
         <service
             android:name=".OverlayService"

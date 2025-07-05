@@ -46,6 +46,8 @@ data class AppSettings(
             "5. Format your response as the revised text only without any explanation\n" +
             "\n" +
             "Do not add introductory phrases like 'Here's the revised text:'. Just provide the improved version.",
+    // NEW: default prompt for summarization
+    val summarySystemPrompt: String = "You are a helpful assistant. Provide a concise summary of the provided text in simple, clear language. Use plain text without bullet points or special formatting.",
     val model: String = "gpt-4o-mini",
     val provider: String = "openai", // Default to OpenAI
     val notificationEnabled: Boolean = false,
@@ -67,6 +69,8 @@ class SettingsStore(private val context: Context) {
     private val geminiApiKeyKey = stringPreferencesKey("gemini_api_key")
     private val systemPromptKey = stringPreferencesKey("system_prompt")
     private val reviseSystemPromptKey = stringPreferencesKey("revise_system_prompt")
+    // NEW key for summary prompt
+    private val summarySystemPromptKey = stringPreferencesKey("summary_system_prompt")
     private val modelKey = stringPreferencesKey("model")
     private val providerKey = stringPreferencesKey("provider")
     private val notificationEnabledKey = booleanPreferencesKey("notification_enabled")
@@ -109,6 +113,12 @@ class SettingsStore(private val context: Context) {
             preferences[reviseSystemPromptKey] ?: AppSettings().reviseSystemPrompt
         }
 
+    // Get stored summary system prompt
+    val summarySystemPromptFlow: Flow<String> = context.settingsDataStore.data
+        .map { preferences ->
+            preferences[summarySystemPromptKey] ?: AppSettings().summarySystemPrompt
+        }
+
     // Get stored model
     val modelFlow: Flow<String> = context.settingsDataStore.data
         .map { preferences ->
@@ -138,6 +148,7 @@ class SettingsStore(private val context: Context) {
                 geminiApiKey = geminiApiKey,
                 systemPrompt = preferences[systemPromptKey] ?: AppSettings().systemPrompt,
                 reviseSystemPrompt = preferences[reviseSystemPromptKey] ?: AppSettings().reviseSystemPrompt,
+                summarySystemPrompt = preferences[summarySystemPromptKey] ?: AppSettings().summarySystemPrompt,
                 model = preferences[modelKey] ?: AppSettings().model,
                 provider = preferences[providerKey] ?: AppSettings().provider,
                 notificationEnabled = preferences[notificationEnabledKey] ?: AppSettings().notificationEnabled,
@@ -170,6 +181,13 @@ class SettingsStore(private val context: Context) {
     suspend fun saveReviseSystemPrompt(reviseSystemPrompt: String) {
         context.settingsDataStore.edit { preferences ->
             preferences[reviseSystemPromptKey] = reviseSystemPrompt
+        }
+    }
+    
+    // Save summary system prompt
+    suspend fun saveSummarySystemPrompt(summarySystemPrompt: String) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[summarySystemPromptKey] = summarySystemPrompt
         }
     }
     
@@ -208,6 +226,7 @@ class SettingsStore(private val context: Context) {
             preferences[geminiApiKeyKey] = settings.geminiApiKey
             preferences[systemPromptKey] = settings.systemPrompt
             preferences[reviseSystemPromptKey] = settings.reviseSystemPrompt
+            preferences[summarySystemPromptKey] = settings.summarySystemPrompt
             preferences[modelKey] = settings.model
             preferences[providerKey] = settings.provider
             preferences[notificationEnabledKey] = settings.notificationEnabled
