@@ -5,6 +5,8 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -45,7 +47,9 @@ data class AppSettings(
             "\n" +
             "Do not add introductory phrases like 'Here's the revised text:'. Just provide the improved version.",
     val model: String = "gpt-4o-mini",
-    val provider: String = "openai" // Default to OpenAI
+    val provider: String = "openai", // Default to OpenAI
+    val notificationEnabled: Boolean = false,
+    val notificationIntervalMinutes: Int = 30
 ) {
     // Get the appropriate API key based on current provider
     val apiKey: String
@@ -65,6 +69,8 @@ class SettingsStore(private val context: Context) {
     private val reviseSystemPromptKey = stringPreferencesKey("revise_system_prompt")
     private val modelKey = stringPreferencesKey("model")
     private val providerKey = stringPreferencesKey("provider")
+    private val notificationEnabledKey = booleanPreferencesKey("notification_enabled")
+    private val notificationIntervalKey = intPreferencesKey("notification_interval_minutes")
 
     // Legacy key for backward compatibility
     private val legacyApiKeyKey = stringPreferencesKey("api_key")
@@ -133,7 +139,9 @@ class SettingsStore(private val context: Context) {
                 systemPrompt = preferences[systemPromptKey] ?: AppSettings().systemPrompt,
                 reviseSystemPrompt = preferences[reviseSystemPromptKey] ?: AppSettings().reviseSystemPrompt,
                 model = preferences[modelKey] ?: AppSettings().model,
-                provider = preferences[providerKey] ?: AppSettings().provider
+                provider = preferences[providerKey] ?: AppSettings().provider,
+                notificationEnabled = preferences[notificationEnabledKey] ?: AppSettings().notificationEnabled,
+                notificationIntervalMinutes = preferences[notificationIntervalKey] ?: AppSettings().notificationIntervalMinutes
             )
         }
     
@@ -179,6 +187,20 @@ class SettingsStore(private val context: Context) {
         }
     }
     
+    // Save notification enabled setting
+    suspend fun saveNotificationEnabled(enabled: Boolean) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[notificationEnabledKey] = enabled
+        }
+    }
+    
+    // Save notification interval setting
+    suspend fun saveNotificationInterval(intervalMinutes: Int) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[notificationIntervalKey] = intervalMinutes
+        }
+    }
+    
     // Save all settings
     suspend fun saveSettings(settings: AppSettings) {
         context.settingsDataStore.edit { preferences ->
@@ -188,6 +210,8 @@ class SettingsStore(private val context: Context) {
             preferences[reviseSystemPromptKey] = settings.reviseSystemPrompt
             preferences[modelKey] = settings.model
             preferences[providerKey] = settings.provider
+            preferences[notificationEnabledKey] = settings.notificationEnabled
+            preferences[notificationIntervalKey] = settings.notificationIntervalMinutes
         }
     }
 } 

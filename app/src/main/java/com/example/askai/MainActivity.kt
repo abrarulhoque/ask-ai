@@ -13,6 +13,11 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -22,30 +27,49 @@ import androidx.lifecycle.lifecycleScope
 import com.example.askai.data.Definition
 import com.example.askai.data.DefinitionStore
 import com.example.askai.data.SettingsStore
+import com.example.askai.service.WordReminderManager
 import com.example.askai.ui.SettingsScreen
 import com.example.askai.ui.theme.AskAITheme
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
+import com.example.askai.AIServiceFactory
+import androidx.compose.material.icons.filled.Add
 
 @OptIn(ExperimentalMaterial3Api::class)
 class MainActivity : ComponentActivity() {
     
     private lateinit var definitionStore: DefinitionStore
     private lateinit var settingsStore: SettingsStore
+    private lateinit var reminderManager: WordReminderManager
+    
+    // Notification permission launcher
+    private val notificationPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            // Permission granted, setup notifications based on current settings
+            setupNotificationsFromSettings()
+        }
+    }
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         
-        // Initialize DataStore
+        // Initialize DataStore and services
         definitionStore = DefinitionStore(applicationContext)
         settingsStore = SettingsStore(applicationContext)
+        reminderManager = WordReminderManager(applicationContext)
+        
+        // Request notification permission if needed and setup notifications
+        requestNotificationPermissionIfNeeded()
         
         setContent {
             AskAITheme {
                 var showSettings by remember { mutableStateOf(false) }
+                var showAddDialog by remember { mutableStateOf(false) }
                 
                 if (showSettings) {
                     SettingsScreen(
@@ -58,6 +82,12 @@ class MainActivity : ComponentActivity() {
                             TopAppBar(
                                 title = { Text("AskAI - Your Definitions") },
                                 actions = {
+                                    IconButton(onClick = { showAddDialog = true }) {
+                                        Icon(
+                                            imageVector = Icons.Default.Add,
+                                            contentDescription = "Add word"
+                                        )
+                                    }
                                     IconButton(onClick = { showSettings = true }) {
                                         Icon(
                                             imageVector = Icons.Default.Settings,
@@ -83,6 +113,58 @@ class MainActivity : ComponentActivity() {
                             }
                         )
                     }
+                }
+
+                // Add Word Dialog
+                if (showAddDialog) {
+                    AddWordDialog(
+                        onDismiss = { showAddDialog = false },
+                        onSave = { word ->
+                            showAddDialog = false
+                            lifecycleScope.launch {
+                                val aiService = AIServiceFactory(settingsStore).getService()
+                                val definition = aiService.getDefinition(word)
+                                definitionStore.saveDefinition(word, definition)
+                            }
+                        }
+                    )
+                }
+            }
+        }
+    }
+    
+    private fun requestNotificationPermissionIfNeeded() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            when {
+                ContextCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.POST_NOTIFICATIONS
+                ) == PackageManager.PERMISSION_GRANTED -> {
+                    // Permission already granted
+                    setupNotificationsFromSettings()
+                }
+                shouldShowRequestPermissionRationale(Manifest.permission.POST_NOTIFICATIONS) -> {
+                    // Show rationale and request permission
+                    notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                }
+                else -> {
+                    // Directly request permission
+                    notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                }
+            }
+        } else {
+            // Permission not needed for older versions
+            setupNotificationsFromSettings()
+        }
+    }
+    
+    private fun setupNotificationsFromSettings() {
+        lifecycleScope.launch {
+            settingsStore.settingsFlow.collect { settings ->
+                if (settings.notificationEnabled) {
+                    reminderManager.schedulePeriodicNotifications(settings.notificationIntervalMinutes)
+                } else {
+                    reminderManager.cancelPeriodicNotifications()
                 }
             }
         }
@@ -227,4 +309,43 @@ fun DefinitionCard(
             }
         }
     }
+}
+
+// New composable for adding a word
+@Composable
+fun AddWordDialog(
+    onDismiss: () -> Unit,
+    onSave: (String) -> Unit
+) {
+    var text by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Add Word") },
+        text = {
+            OutlinedTextField(
+                value = text,
+                onValueChange = { text = it },
+                label = { Text("Word") },
+                singleLine = true
+            )
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    val trimmed = text.trim()
+                    if (trimmed.isNotEmpty()) {
+                        onSave(trimmed)
+                    }
+                }
+            ) {
+                Text("Save")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
 }

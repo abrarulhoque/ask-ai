@@ -24,6 +24,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.Switch
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -31,6 +32,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -53,6 +55,8 @@ fun SettingsScreen(
     var reviseSystemPrompt by remember { mutableStateOf("") }
     var modelName by remember { mutableStateOf("") }
     var provider by remember { mutableStateOf("openai") }
+    var notificationEnabled by remember { mutableStateOf(false) }
+    var notificationInterval by remember { mutableStateOf(30) }
     var isSaving by remember { mutableStateOf(false) }
     
     // Load current settings
@@ -64,6 +68,8 @@ fun SettingsScreen(
         reviseSystemPrompt = settings.reviseSystemPrompt
         modelName = settings.model
         provider = settings.provider
+        notificationEnabled = settings.notificationEnabled
+        notificationInterval = settings.notificationIntervalMinutes
     }
     
     Scaffold(
@@ -207,6 +213,53 @@ fun SettingsScreen(
             
             Spacer(modifier = Modifier.height(24.dp))
             
+            Text(
+                text = "Notifications",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold
+            )
+            
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Enable word reminders",
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.weight(1f)
+                )
+                Switch(
+                    checked = notificationEnabled,
+                    onCheckedChange = { notificationEnabled = it }
+                )
+            }
+            
+            if (notificationEnabled) {
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                OutlinedTextField(
+                    value = notificationInterval.toString(),
+                    onValueChange = { value ->
+                        value.toIntOrNull()?.let { interval ->
+                            if (interval >= 15) { // Minimum 15 minutes
+                                notificationInterval = interval
+                            }
+                        }
+                    },
+                    label = { Text("Reminder interval (minutes)") },
+                    placeholder = { Text("Minimum 15 minutes") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    supportingText = {
+                        Text("How often to show word reminders (minimum 15 minutes)")
+                    }
+                )
+            }
+            
+            Spacer(modifier = Modifier.height(24.dp))
+            
             Button(
                 onClick = {
                     isSaving = true
@@ -217,7 +270,9 @@ fun SettingsScreen(
                             systemPrompt = systemPrompt,
                             reviseSystemPrompt = reviseSystemPrompt,
                             model = modelName,
-                            provider = provider
+                            provider = provider,
+                            notificationEnabled = notificationEnabled,
+                            notificationIntervalMinutes = notificationInterval
                         )
                         settingsStore.saveSettings(settings)
                         isSaving = false

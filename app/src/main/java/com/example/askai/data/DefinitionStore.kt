@@ -32,12 +32,12 @@ class DefinitionStore(private val context: Context) {
     // Key for storing serialized definitions list
     private val definitionsKey = stringPreferencesKey("definitions_list")
     
-    // Get all definitions as a Flow
+    // Get all definitions as a Flow - latest first (reversed order)
     val allDefinitionsFlow: Flow<List<Definition>> = context.dataStore.data
         .map { preferences ->
             val definitionsJson = preferences[definitionsKey] ?: "[]"
             try {
-                Json.decodeFromString<List<Definition>>(definitionsJson)
+                Json.decodeFromString<List<Definition>>(definitionsJson).reversed()
             } catch (e: Exception) {
                 emptyList()
             }
